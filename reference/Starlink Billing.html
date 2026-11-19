@@ -1,0 +1,896 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Starlink Billing</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: sticky top bar with tabs and a notification bell, an alert strip under it, then dashboard (follow-ups + chart), clients, payments (bills + transactions), messages and setup. */
+:root{
+  --bg:#f2f5f7; --surface:#ffffff; --surface2:#e9eef1; --fg:#10181d; --muted:#586671; --line:#d7dfe4;
+  --accent:#0a6c88; --accent-fg:#ffffff; --accent-soft:#d9ebf1;
+  --good:#1c7a4b; --good-soft:#dcf0e5; --warn:#8f5606; --warn-soft:#f8ecd2; --bad:#b0301e; --bad-soft:#f8dfd9;
+  --bar:#c3ced5;
+  --font-head:"Space Grotesk",system-ui,sans-serif; --font-body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b1013; --surface:#131a1f; --surface2:#1a242a; --fg:#e7eef2; --muted:#8b99a3; --line:#25313a;
+  --accent:#52b9d6; --accent-fg:#03202a; --accent-soft:#11303b;
+  --good:#4cc38a; --good-soft:#12301f; --warn:#e3a94b; --warn-soft:#352a10; --bad:#f2745f; --bad-soft:#3a1b15;
+  --bar:#2f3e48; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1013; --surface:#131a1f; --surface2:#1a242a; --fg:#e7eef2; --muted:#8b99a3; --line:#25313a;
+  --accent:#52b9d6; --accent-fg:#03202a; --accent-soft:#11303b;
+  --good:#4cc38a; --good-soft:#12301f; --warn:#e3a94b; --warn-soft:#352a10; --bad:#f2745f; --bad-soft:#3a1b15;
+  --bar:#2f3e48; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--font-body);min-height:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+h1,h2,h3{font-family:var(--font-head);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:18px} h3{font-size:15px}
+button,input,select,textarea{font:inherit;color:inherit}
+.inner{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:14px;padding-block:10px}
+.brand{display:flex;align-items:center;gap:9px;font-family:var(--font-head);font-weight:700;font-size:17px;color:var(--fg);text-decoration:none;white-space:nowrap}
+.brand svg{color:var(--accent)}
+nav{display:flex;gap:2px;overflow-x:auto;margin-left:8px;min-width:0;scrollbar-width:none}
+nav a{padding:7px 12px;border-radius:6px;color:var(--muted);text-decoration:none;font-weight:500;white-space:nowrap}
+nav a:hover{color:var(--fg);background:var(--surface2)}
+nav a[aria-current="page"]{color:var(--accent);background:var(--accent-soft)}
+.bellwrap{margin-left:auto;position:relative}
+.bell{position:relative;display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer}
+.bell .dot{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.panel-pop{position:absolute;right:0;top:calc(100% + 8px);width:min(400px,calc(100vw - 32px));max-height:70vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.18);z-index:40}
+.pop-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.note{padding:11px 14px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.note:last-child{border-bottom:0}
+.note .ic{flex:none;width:8px;height:8px;border-radius:50%;margin-top:7px;background:var(--muted)}
+.note .nb{flex:1;min-width:0}
+.note.unread{background:var(--accent-soft)}
+.note small{display:block;color:var(--muted)}
+.note .acts{margin-top:6px}
+@media (max-width:760px){.bar{flex-wrap:wrap}nav{order:3;width:100%;margin-left:0}}
+
+.alertbar{display:block;text-decoration:none;border-radius:8px;padding:10px 14px;margin-top:14px;font-weight:500;overflow-wrap:anywhere}
+.alertbar.bad{background:var(--bad-soft);color:var(--bad)}
+.alertbar.warn{background:var(--warn-soft);color:var(--warn)}
+.alertbar b{font-weight:700}
+
+main{padding-block:22px 60px}
+.pagehead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.pagehead p{margin:2px 0 0;color:var(--muted)}
+.banner{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-weight:500}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:16px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.tile .k{color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.tile .v{font-family:var(--font-head);font-size:26px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tile .s{color:var(--muted);font-size:13px;margin-top:2px}
+.tile.bad .v{color:var(--bad)}
+
+.grid2{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;margin-bottom:16px}
+.grid2b{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px}
+@media (max-width:900px){.grid2,.grid2b{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.card>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 10px}
+.card .body{padding:0 16px 16px}
+.list{display:flex;flex-direction:column}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;justify-content:space-between;padding:11px 16px;border-top:1px solid var(--line)}
+.row .who{min-width:0;flex:1 1 160px}
+.row .who b{display:block;overflow-wrap:anywhere}
+.row .who span{color:var(--muted);font-size:13px}
+.row .amt{font-variant-numeric:tabular-nums;font-weight:600}
+.row .amt.dim{font-weight:500;color:var(--muted);font-size:13px}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.empty{padding:26px 16px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--fg);font-family:var(--font-head);font-size:16px;margin-bottom:4px}
+
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.neutral{background:var(--surface2);color:var(--muted)}
+
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:8px 14px;font-weight:600;cursor:pointer;line-height:1.2}
+.btn:hover{background:var(--surface2)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn.danger{color:var(--bad)}
+.btn.danger.armed{background:var(--bad);color:#fff;border-color:var(--bad)}
+.btn.x{padding:2px 8px;font-size:16px;line-height:1.2;border-color:transparent;background:transparent;color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:9px 16px;border-top:1px solid var(--line);white-space:nowrap}
+td{padding:10px 16px;border-top:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right}
+td.nw{white-space:nowrap}
+.filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.filters select{width:auto;min-width:160px}
+
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;min-width:0}
+.field label{font-weight:600;font-size:13px}
+.field small{color:var(--muted)}
+input,select,textarea{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:8px 10px;min-width:0}
+input[type=checkbox]{width:auto}
+.check{display:flex;align-items:center;gap:8px;font-weight:500}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+@media (max-width:520px){.two{grid-template-columns:1fr}}
+.sec{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:8px 0 10px;padding-top:12px;border-top:1px solid var(--line)}
+.prev{background:var(--surface2);border-radius:8px;padding:10px 14px;margin-bottom:14px}
+.prow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:5px 0}
+.prow>span{color:var(--muted);flex:none}
+.prow b{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.prow small{font-weight:400}
+
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(5,10,14,.55);display:flex;align-items:flex-start;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overflow:auto}
+.dialog{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:min(580px,100%);margin-top:4vh;padding:20px}
+.dialog h2{margin-bottom:14px}
+.dialog .foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}
+
+.msgwrap{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:16px}
+@media (max-width:900px){.msgwrap{grid-template-columns:minmax(0,1fr)}}
+.msgout{min-height:520px;white-space:pre-wrap;line-height:1.55;resize:vertical}
+.hint{color:var(--muted);font-size:13px}
+
+svg.chart text{fill:var(--muted);font-size:11px;font-family:var(--font-body)}
+svg.chart .grid{stroke:var(--line);stroke-width:1}
+svg.chart .b-billed{fill:var(--bar)}
+svg.chart .b-paid{fill:var(--accent)}
+.legend{display:flex;gap:14px;color:var(--muted);font-size:13px;margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+.feed{display:flex;flex-direction:column}
+.feed div{display:flex;gap:10px;padding:9px 16px;border-top:1px solid var(--line)}
+.feed i{flex:none;width:8px;height:8px;border-radius:50%;margin-top:7px;background:var(--muted)}
+.feed i.payment{background:var(--good)} .feed i.client{background:var(--accent)}
+.feed small{display:block;color:var(--muted)}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(20px,env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:500;z-index:60;max-width:calc(100vw - 32px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+@media (prefers-reduced-motion:no-preference){#toast{animation:pop .18s ease-out}@keyframes pop{from{opacity:0;transform:translate(-50%,6px)}}}
+</style>
+
+<header class="top">
+  <div class="inner bar">
+    <a class="brand" href="#dashboard">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 0 1 15 0"/><path d="M8.5 12a3.5 3.5 0 0 1 7 0"/><circle cx="12" cy="16.5" r="1.4" fill="currentColor"/></svg>
+      Starlink Billing
+    </a>
+    <nav id="nav" aria-label="Sections">
+      <a href="#dashboard" data-r="dashboard">Dashboard</a>
+      <a href="#clients" data-r="clients">Clients</a>
+      <a href="#payments" data-r="payments">Payments</a>
+      <a href="#messages" data-r="messages">Messages</a>
+      <a href="#setup" data-r="setup">Setup</a>
+    </nav>
+    <div class="bellwrap">
+      <button class="bell" id="bell" data-act="toggleBell" aria-label="Notifications" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+        <span class="dot" id="bellDot" hidden>0</span>
+      </button>
+      <div class="panel-pop" id="pop" hidden></div>
+    </div>
+  </div>
+</header>
+
+<div class="inner">
+  <div id="alertbar" aria-live="polite"></div>
+  <main id="main"></main>
+</div>
+
+<div class="overlay" id="overlay" hidden><div class="dialog" id="dialog" role="dialog" aria-modal="true"></div></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function(){
+'use strict';
+var KEY='starlink-billing-v1';
+var CYCLE=30;
+var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var storageOK=true;
+var state;
+var ui={msg:null,fClient:'all',fMonth:'all'};
+
+/* ---------- helpers ---------- */
+function uid(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3)}
+function p2(n){return String(n).padStart(2,'0')}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function peso(n){return '₱'+Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function pesoShort(n){return '₱'+Number(n||0).toLocaleString('en-PH',{maximumFractionDigits:0})}
+function toISO(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())}
+function todayISO(){return toISO(new Date())}
+function ymNow(){return todayISO().slice(0,7)}
+function toDT(d){return toISO(d)+'T'+p2(d.getHours())+':'+p2(d.getMinutes())}
+function nowDT(){return toDT(new Date())}
+function parseDT(s){var a=String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);return new Date(+a[1],+a[2]-1,+a[3],+(a[4]||0),+(a[5]||0))}
+function addDaysDT(s,n){var d=parseDT(s);d.setDate(d.getDate()+n);return toDT(d)}
+function monthLabel(s){var a=s.split('-').map(Number);return MONTHS[a[1]-1]+' '+a[0]}
+function monthShort(s){return MONTHS[+s.split('-')[1]-1].slice(0,3)}
+function addMonth(s,n){var a=s.split('-').map(Number);var i=a[0]*12+(a[1]-1)+n;return Math.floor(i/12)+'-'+p2(i%12+1)}
+function longDate(iso){var a=iso.slice(0,10).split('-').map(Number);return MONTHS[a[1]-1]+' '+a[2]+', '+a[0]}
+function shortDate(iso){var a=iso.slice(0,10).split('-').map(Number);return MONTHS[a[1]-1].slice(0,3)+' '+a[2]}
+function fmtTime(d){var h=d.getHours();return (h%12||12)+':'+p2(d.getMinutes())+' '+(h<12?'AM':'PM')}
+function shortDT(s){var d=parseDT(s);return MONTHS[d.getMonth()].slice(0,3)+' '+d.getDate()+', '+fmtTime(d)}
+function midDT(s){var d=parseDT(s);return MONTHS[d.getMonth()].slice(0,3)+' '+d.getDate()+', '+d.getFullYear()+' '+fmtTime(d)}
+function longDT(s){var d=parseDT(s);return MONTHS[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()+' at '+fmtTime(d)}
+function rangeLong(s,e){var a=parseDT(s),b=parseDT(e),f=function(d){return MONTHS[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()+' ('+fmtTime(d)+')'};return f(a)+' – '+f(b)}
+function rangeShort(s,e){
+  var a=parseDT(s),b=parseDT(e),m=function(d){return MONTHS[d.getMonth()].slice(0,3)+' '+d.getDate()};
+  return a.getFullYear()!==b.getFullYear()?m(a)+', '+a.getFullYear()+' – '+m(b)+', '+b.getFullYear():m(a)+' – '+m(b);
+}
+function stamp(ts){return new Date(ts).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
+function sum(arr,f){return arr.reduce(function(t,x){return t+f(x)},0)}
+function $(id){return document.getElementById(id)}
+function cycleStart(c,n){return addDaysDT(c.start,CYCLE*n)}
+function cycleDue(c,n){return addDaysDT(c.start,CYCLE*(n+1))}
+function dur(ms){
+  var m=Math.floor(Math.abs(ms)/6e4),d=Math.floor(m/1440),h=Math.floor(m%1440/60),mi=m%60;
+  if(m<1)return 'under a minute';
+  if(d>0)return d+' day'+(d===1?'':'s')+(h?' '+h+' hr':'');
+  if(h>0)return h+' hr'+(mi?' '+mi+' min':'');
+  return mi+' min';
+}
+function leftText(due){var ms=parseDT(due)-Date.now();return ms<0?dur(ms)+' overdue':dur(ms)+' left'}
+
+/* ---------- state ---------- */
+function seed(){
+  return {
+    v:3,
+    settings:{
+      name:'Lordwaren Lariba Puntos',
+      gcash:'09097569311',
+      defaultShare:1150,
+      reminderDays:3,
+      reason:'Please be informed that the monthly internet share has increased from ₱1,000 to ₱1,150 due to an adjustment in the overall internet subscription and service expenses. This adjustment helps cover the cost of maintaining the Starlink internet service.'
+    },
+    clients:[{id:uid(),name:'Bea Bantilan',phone:'',share:1150,start:'2026-10-01T00:00',skipped:[],notes:'',active:true}],
+    bills:[],txs:[],notes:[],
+    log:[{id:uid(),ts:new Date(2026,9,1,9,0).getTime(),text:'Registered Bea Bantilan',kind:'client'}]
+  };
+}
+function normalize(s){
+  var d=seed();
+  s.settings=Object.assign({},d.settings,s.settings||{});
+  ['clients','bills','txs','notes','log'].forEach(function(k){if(!Array.isArray(s[k]))s[k]=[]});
+  return s;
+}
+function migrate(s){
+  if(!(s.v>=2)){
+    s.clients.forEach(function(c){
+      if(!c.start)c.start=(c.since||ymNow())+'-01';
+      delete c.since;delete c.dueDay;c.skipped=c.skipped||[];
+    });
+    var used={};
+    s.bills.forEach(function(b){
+      if(!b.month)return;
+      var c=s.clients.find(function(x){return x.id===b.clientId}),st=b.month+'-01';
+      if(!c){b.start=st;b.due=st;b.n=null;delete b.month;return}
+      var n=Math.max(0,Math.round((parseDT(st)-parseDT(c.start))/864e5/CYCLE));
+      used[c.id]=used[c.id]||{};
+      while(used[c.id][n])n++;
+      used[c.id][n]=1;
+      b.n=n;b.start=cycleStart(c,n);b.due=cycleDue(c,n);delete b.month;
+    });
+    s.v=2;
+  }
+  if(s.v<3){
+    s.clients.forEach(function(c){if(c.start&&c.start.length===10)c.start+='T00:00';c.skipped=c.skipped||[]});
+    s.bills.forEach(function(b){
+      var c=s.clients.find(function(x){return x.id===b.clientId});
+      if(b.n!=null&&c){b.start=cycleStart(c,b.n);b.due=cycleDue(c,b.n)}
+      else{
+        if(b.start&&b.start.length===10)b.start+='T00:00';
+        if(b.due&&b.due.length===10)b.due+='T23:59';
+      }
+    });
+    s.v=3;
+  }
+  return s;
+}
+function load(){
+  try{var r=localStorage.getItem(KEY);if(r){var s=JSON.parse(r);if(s&&Array.isArray(s.clients))return migrate(normalize(s))}}catch(e){storageOK=false}
+  return seed();
+}
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(state));storageOK=true}catch(e){storageOK=false}
+}
+function addLog(text,kind){state.log.unshift({id:uid(),ts:Date.now(),text:text,kind:kind||'other'});if(state.log.length>200)state.log.length=200}
+function ensureBills(){
+  var now=nowDT(),changed=false;
+  state.clients.forEach(function(c){
+    if(!c.active||!c.start)return;
+    var skip=c.skipped||[];
+    for(var n=0;n<400;n++){
+      var st=cycleStart(c,n);if(st>now)break;
+      if(skip.indexOf(n)>=0)continue;
+      if(!state.bills.some(function(b){return b.clientId===c.id&&b.n===n})){
+        state.bills.push({id:uid(),clientId:c.id,n:n,start:st,due:cycleDue(c,n),amount:c.share,paid:0});changed=true;
+      }
+    }
+  });
+  return changed;
+}
+
+/* ---------- queries ---------- */
+function client(id){return state.clients.find(function(c){return c.id===id})}
+function virtualBill(c,n){return {id:'v:'+c.id+':'+n,virtual:true,clientId:c.id,n:n,start:cycleStart(c,n),due:cycleDue(c,n),amount:c.share,paid:0}}
+function projected(c){
+  if(!c||!c.active)return null;
+  var skip=c.skipped||[];
+  for(var n=0;n<400;n++){
+    if(skip.indexOf(n)>=0)continue;
+    if(state.bills.some(function(b){return b.clientId===c.id&&b.n===n}))continue;
+    return virtualBill(c,n);
+  }
+  return null;
+}
+function bill(id){return state.bills.find(function(b){return b.id===id})}
+function getBill(id){
+  if(id&&String(id).indexOf('v:')===0){var p=id.split(':');var c=client(p[1]);return c?virtualBill(c,+p[2]):null}
+  return bill(id);
+}
+function materialize(b){
+  if(!b.virtual)return b;
+  var real={id:uid(),clientId:b.clientId,n:b.n,start:b.start,due:b.due,amount:b.amount,paid:0};
+  state.bills.push(real);return real;
+}
+function clientName(id){var c=client(id);return c?c.name:'Removed client'}
+function balance(b){return Math.max(0,b.amount-b.paid)}
+function isActive(id){var c=client(id);return !!(c&&c.active)}
+function info(b){
+  var bal=balance(b),now=Date.now(),due=parseDT(b.due).getTime(),st=parseDT(b.start).getTime(),w=state.settings.reminderDays*864e5,left=due-now;
+  if(bal<=0.005)return {bal:0,status:'paid',label:'Paid',tone:'good',ms:left,soon:false};
+  if(left<0)return {bal:bal,status:'overdue',label:'Overdue',tone:'bad',ms:left,soon:false};
+  if(b.paid>0)return {bal:bal,status:'partial',label:'Partial',tone:'warn',ms:left,soon:left<=w};
+  if(st>now)return {bal:bal,status:'upcoming',label:'Upcoming',tone:'neutral',ms:left,soon:false};
+  if(left<=w)return {bal:bal,status:'duesoon',label:'Due soon',tone:'warn',ms:left,soon:true};
+  return {bal:bal,status:'unpaid',label:'Unpaid',tone:'neutral',ms:left,soon:false};
+}
+function dueText(i){return i.status==='overdue'?dur(i.ms)+' overdue':'due in '+dur(i.ms)}
+function pill(i){return '<span class="pill '+i.tone+'">'+i.label+'</span>'}
+function openBills(){
+  return state.bills.filter(function(b){return isActive(b.clientId)&&balance(b)>0.005}).sort(function(a,b){
+    return a.due<b.due?-1:a.due>b.due?1:clientName(a.clientId).localeCompare(clientName(b.clientId));
+  });
+}
+function billsOf(cid){return state.bills.filter(function(b){return b.clientId===cid}).sort(function(a,b){return a.due<b.due?1:a.due>b.due?-1:0})}
+function nextBill(c){
+  var open=billsOf(c.id).filter(function(b){return balance(b)>0.005}).sort(function(a,b){return a.due<b.due?-1:1})[0];
+  return open||projected(c);
+}
+function followRows(){
+  var rows=openBills();
+  state.clients.forEach(function(c){
+    if(!c.active)return;
+    if(rows.some(function(b){return b.clientId===c.id}))return;
+    var v=projected(c);if(v)rows.push(v);
+  });
+  return rows.sort(function(a,b){return a.due<b.due?-1:a.due>b.due?1:0});
+}
+function alerts(){
+  var out=[];
+  openBills().forEach(function(b){
+    var i=info(b),n=clientName(b.clientId),r=rangeShort(b.start,b.due);
+    if(i.status==='overdue')out.push({tone:'bad',name:n,when:dur(i.ms)+' overdue',sub:r+' · '+peso(i.bal)+' unpaid · due '+shortDT(b.due),billId:b.id,rank:i.ms});
+    else if(i.soon)out.push({tone:'warn',name:n,when:'due in '+dur(i.ms),sub:r+' · '+peso(i.bal)+' · due '+shortDT(b.due),billId:b.id,rank:i.ms});
+  });
+  out.sort(function(a,b){return a.rank-b.rank});
+  return out;
+}
+
+/* ---------- message ---------- */
+function buildMessage(c,b,o){
+  var s=state.settings,bal=balance(b),ml=rangeLong(b.start,b.due),date=longDate(o.date),L;
+  if(o.type==='receipt'){
+    L=['STARLINK INTERNET PAYMENT RECEIPT','','Date: '+date,'','To: '+c.name,'',
+      'Payment received for your monthly share of the Starlink Internet Subscription, '+ml+' billing period.','',
+      'Amount Paid: '+peso(b.paid),'','Billing Period: '+ml,'',
+      'Remaining Balance: '+peso(bal),'','Received by: '+s.name,'','---','','Thank you for your payment!'];
+    return L.join('\n');
+  }
+  var due=bal>0?bal:b.amount;
+  L=['STARLINK INTERNET PAYMENT NOTICE','','Date: '+date,'','To: '+c.name,'',
+    'This is a reminder for your monthly share for the Starlink Internet Subscription covering the '+ml+' billing period.','',
+    'Amount Due: '+peso(due),'','Billing Period: '+ml,'',
+    'Payment Method: GCash ('+s.gcash+' – '+s.name+')',''];
+  if(o.reason&&s.reason.trim())L.push('Reason for Billing Increase:','',s.reason.trim(),'');
+  L.push('Purpose: Monthly Share – Starlink Internet Subscription ('+ml+')','',
+    'Kindly send your payment at your earliest convenience.','','Received by: '+s.name,'','---','',
+    'Thank you for your understanding, cooperation, and continued support!');
+  return L.join('\n');
+}
+function msgBills(cid){
+  var list=billsOf(cid),v=projected(client(cid));
+  if(v)list=list.concat([v]);
+  return list.sort(function(a,b){return a.due<b.due?1:a.due>b.due?-1:0});
+}
+function defaultBill(cid){
+  var open=billsOf(cid).filter(function(b){return balance(b)>0.005}).sort(function(a,b){return a.due<b.due?-1:1})[0];
+  if(open)return open.id;
+  var v=projected(client(cid));if(v)return v.id;
+  var bs=billsOf(cid);return bs.length?bs[0].id:'';
+}
+function ensureMsg(){
+  if(!state.clients.length)return null;
+  var m=ui.msg||(ui.msg={clientId:'',billId:'',type:'reminder',date:todayISO(),reason:true});
+  if(!client(m.clientId)){
+    var first=openBills()[0];
+    m.clientId=first?first.clientId:state.clients[0].id;m.billId='';
+  }
+  var b=getBill(m.billId);
+  if(!b||b.clientId!==m.clientId)m.billId=defaultBill(m.clientId);
+  return m;
+}
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);return true}
+  catch(e){
+    var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0;top:0';
+    document.body.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy')}catch(_){}
+    ta.remove();return ok;
+  }
+}
+var toastT;
+function toast(t){var el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){el.hidden=true},4200)}
+
+/* ---------- views ---------- */
+function empty(title,text,btn){return '<div class="empty"><b>'+title+'</b>'+text+(btn?'<div style="margin-top:12px">'+btn+'</div>':'')+'</div>'}
+
+function chartSVG(data){
+  var W=640,H=230,pl=52,pr=8,pt=12,pb=26;
+  var max=Math.max(1,Math.max.apply(null,data.map(function(d){return Math.max(d.billed,d.paid)})));
+  var raw=max/4,p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p,step=(f<=1?1:f<=2?2:f<=5?5:10)*p;
+  var top=step*Math.ceil(max/step);
+  function y(v){return pt+(H-pt-pb)*(1-v/top)}
+  var s='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Billed and collected per month" width="100%">';
+  for(var v=0;v<=top+0.001;v+=step){s+='<line class="grid" x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(v)+'" y2="'+y(v)+'"/><text x="'+(pl-8)+'" y="'+(y(v)+4)+'" text-anchor="end">'+pesoShort(v)+'</text>'}
+  var gw=(W-pl-pr)/data.length,bw=Math.min(34,gw*.28);
+  data.forEach(function(d,i){
+    var cx=pl+gw*i+gw/2;
+    s+='<rect class="b-billed" x="'+(cx-bw-2)+'" y="'+y(d.billed)+'" width="'+bw+'" height="'+Math.max(0,y(0)-y(d.billed))+'"><title>'+d.full+' billed '+peso(d.billed)+'</title></rect>';
+    s+='<rect class="b-paid" x="'+(cx+2)+'" y="'+y(d.paid)+'" width="'+bw+'" height="'+Math.max(0,y(0)-y(d.paid))+'"><title>'+d.full+' collected '+peso(d.paid)+'</title></rect>';
+    s+='<text x="'+cx+'" y="'+(H-8)+'" text-anchor="middle">'+d.label+'</text>';
+  });
+  return s+'</svg>';
+}
+
+function followRow(b){
+  var i=info(b),h;
+  if(b.virtual){
+    var paidBefore=state.bills.some(function(x){return x.clientId===b.clientId&&balance(x)<=0.005});
+    h='<div class="row"><div class="who"><b>'+esc(clientName(b.clientId))+'</b><span>Covered until '+shortDT(b.due)+' · '+dur(i.ms)+' left</span></div>'+
+      '<span class="amt dim">Next '+peso(b.amount)+'</span><span class="pill '+(paidBefore?'good':'neutral')+'">'+(paidBefore?'Paid up':'Upcoming')+'</span>';
+  }else{
+    h='<div class="row"><div class="who"><b>'+esc(clientName(b.clientId))+'</b><span>'+rangeShort(b.start,b.due)+' · '+dueText(i)+' ('+shortDT(b.due)+')'+(b.paid>0?' · '+peso(b.paid)+' paid':'')+'</span></div>'+
+      '<span class="amt">'+peso(i.bal)+'</span>'+pill(i);
+  }
+  return h+'<div class="acts"><button class="btn sm" data-act="quickCopy" data-id="'+b.id+'">Copy message</button><button class="btn sm primary" data-act="newPay" data-bill="'+b.id+'">Mark paid</button></div></div>';
+}
+
+function dashboard(){
+  var now=ymNow(),act=state.clients.filter(function(c){return c.active}),w=state.settings.reminderDays;
+  if(!state.clients.length){
+    return '<div class="card">'+empty('No clients yet','Register your first client to start billing.','<button class="btn primary" data-act="newClient">Register client</button>')+'</div>';
+  }
+  var open=openBills(),overdue=open.filter(function(b){return info(b).status==='overdue'}),soon=open.filter(function(b){return info(b).soon});
+  var collected=sum(state.txs.filter(function(t){return t.date.slice(0,7)===now}),function(t){return t.amount});
+  var thisBills=state.bills.filter(function(b){return b.due.slice(0,7)===now&&isActive(b.clientId)});
+  var paidN=thisBills.filter(function(b){return balance(b)<=0.005}).length;
+  var data=[];for(var i=5;i>=0;i--){
+    var m=addMonth(now,-i),bs=state.bills.filter(function(b){return b.due.slice(0,7)===m});
+    data.push({label:monthShort(m),full:monthLabel(m),billed:sum(bs,function(b){return b.amount}),paid:sum(bs,function(b){return Math.min(b.paid,b.amount)})});
+  }
+  var h='<div class="pagehead"><div><h1 style="font-size:24px">Dashboard</h1><p>'+monthLabel(now)+' · billed automatically every '+CYCLE+' days from each client’s registration time</p></div><div class="acts"><button class="btn" data-act="newClient">Register client</button><button class="btn primary" data-act="newPay">Record payment</button></div></div>';
+  h+='<div class="tiles">'+
+    '<div class="tile"><div class="k">Collected in '+monthShort(now)+'</div><div class="v">'+peso(collected)+'</div><div class="s">'+paidN+' of '+thisBills.length+' bills due this month are paid</div></div>'+
+    '<div class="tile"><div class="k">Outstanding</div><div class="v">'+peso(sum(open,balance))+'</div><div class="s">'+open.length+' unpaid bill'+(open.length===1?'':'s')+'</div></div>'+
+    '<div class="tile'+(overdue.length?' bad':'')+'"><div class="k">Overdue</div><div class="v">'+peso(sum(overdue,balance))+'</div><div class="s">'+overdue.length+' overdue · '+soon.length+' due within '+w+' day'+(w===1?'':'s')+'</div></div>'+
+    '<div class="tile"><div class="k">Active clients</div><div class="v">'+act.length+'</div><div class="s">'+peso(sum(act,function(c){return c.share}))+' expected per '+CYCLE+' days</div></div></div>';
+
+  var rows=followRows();
+  h+='<div class="grid2"><section class="card"><header><h2>Needs follow-up</h2><span class="hint">Most urgent first. Paid clients stay listed with time left.</span></header><div class="list">';
+  if(!rows.length)h+=empty('No active clients','Register or reactivate a client to see their bills here.');
+  rows.forEach(function(b){h+=followRow(b)});
+  h+='</div></section>';
+  h+='<section class="card"><header><h2>Billed vs collected</h2></header><div class="body">'+chartSVG(data)+'<div class="legend"><span><i style="background:var(--bar)"></i>Billed</span><span><i style="background:var(--accent)"></i>Collected</span></div></div></section></div>';
+
+  var txs=state.txs.slice().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:b.ts-a.ts}).slice(0,6);
+  h+='<div class="grid2b"><section class="card"><header><h2>Recent payments</h2><a href="#payments" class="hint">View all</a></header><div class="list">';
+  if(!txs.length)h+=empty('No payments yet','Recorded payments will show up here.');
+  txs.forEach(function(t){var bl=bill(t.billId);h+='<div class="row"><div class="who"><b>'+esc(clientName(t.clientId))+'</b><span>'+(bl?rangeShort(bl.start,bl.due):'')+' · '+esc(t.method)+' · '+shortDate(t.date)+'</span></div><span class="amt">'+peso(t.amount)+'</span></div>'});
+  h+='</div></section><section class="card"><header><h2>Activity</h2>'+(state.log.length?'<button class="btn sm" data-act="clearLog">Clear</button>':'')+'</header><div class="feed">';
+  state.log.slice(0,8).forEach(function(l){h+='<div><i class="'+l.kind+'"></i><span>'+esc(l.text)+'<small>'+stamp(l.ts)+'</small></span></div>'});
+  if(!state.log.length)h+=empty('Nothing yet','Registrations and payments are listed here.');
+  return h+'</div></section></div>';
+}
+
+function nextDue(c){
+  if(!c.active)return '<span class="hint">—</span>';
+  var b=nextBill(c);if(!b)return '<span class="hint">—</span>';
+  var ms=parseDT(b.due)-Date.now(),amt=b.virtual?b.amount:balance(b);
+  return '<b>'+midDT(b.due)+'</b><div class="hint">'+peso(amt)+' · '+(ms<0?'<span style="color:var(--bad)">'+dur(ms)+' overdue</span>':dur(ms)+' left')+'</div>';
+}
+function clientStatus(c){
+  if(!c.active)return '<span class="pill neutral">Archived</span>';
+  var bs=state.bills.filter(function(b){return b.clientId===c.id&&balance(b)>0.005}).map(info);
+  if(bs.some(function(i){return i.status==='overdue'}))return '<span class="pill bad">Overdue</span>';
+  if(bs.some(function(i){return i.soon}))return '<span class="pill warn">Due soon</span>';
+  if(bs.length)return '<span class="pill neutral">Unpaid</span>';
+  return '<span class="pill good">Paid up</span>';
+}
+function clientsView(){
+  var h='<div class="pagehead"><div><h1 style="font-size:24px">Clients</h1><p>Everyone sharing the Starlink subscription</p></div><button class="btn primary" data-act="newClient">Register client</button></div><section class="card">';
+  if(!state.clients.length)return h+empty('No clients yet','Register a client to generate their bills.','<button class="btn primary" data-act="newClient">Register client</button>')+'</section>';
+  h+='<div class="tablewrap"><table><thead><tr><th>Client</th><th>Contact</th><th class="num">Share / '+CYCLE+' days</th><th>Registered</th><th>Next due</th><th class="num">Balance</th><th>Status</th><th></th></tr></thead><tbody>';
+  state.clients.forEach(function(c){
+    var bal=sum(state.bills.filter(function(b){return b.clientId===c.id}),balance);
+    h+='<tr><td><b>'+esc(c.name)+'</b>'+(c.notes?'<div class="hint">'+esc(c.notes)+'</div>':'')+'</td><td>'+(esc(c.phone)||'<span class="hint">—</span>')+'</td><td class="num">'+peso(c.share)+'</td><td class="nw">'+midDT(c.start)+'</td><td class="nw">'+nextDue(c)+'</td><td class="num">'+peso(bal)+'</td><td>'+clientStatus(c)+'</td><td class="nw"><div class="acts"><button class="btn sm" data-act="goMsg" data-client="'+c.id+'">Message</button><button class="btn sm" data-act="editClient" data-id="'+c.id+'">Edit</button><button class="btn sm danger" data-act="delClient" data-id="'+c.id+'" title="Deletes the client with their bills and payments">Delete</button></div></td></tr>';
+  });
+  return h+'</tbody></table></div></section>';
+}
+
+function paymentsView(){
+  var f=ui.fClient,fm=ui.fMonth;
+  var months=Array.from(new Set(state.bills.map(function(b){return b.due.slice(0,7)}))).sort().reverse();
+  var h='<div class="pagehead"><div><h1 style="font-size:24px">Payments</h1><p>Bills are created every '+CYCLE+' days. Edit or delete any bill or transaction.</p></div><div class="acts"><button class="btn" data-act="newBill">Add bill</button><button class="btn primary" data-act="newPay">Record payment</button></div></div>';
+  h+='<div class="filters"><select id="fClient" data-change="fClient" aria-label="Filter by client"><option value="all">All clients</option>'+state.clients.map(function(c){return '<option value="'+c.id+'"'+(f===c.id?' selected':'')+'>'+esc(c.name)+'</option>'}).join('')+'</select>'+
+    '<select id="fMonth" data-change="fMonth" aria-label="Filter by due month"><option value="all">All due months</option>'+months.map(function(m){return '<option value="'+m+'"'+(fm===m?' selected':'')+'>Due '+monthLabel(m)+'</option>'}).join('')+'</select></div>';
+  var bs=state.bills.filter(function(b){return (f==='all'||b.clientId===f)&&(fm==='all'||b.due.slice(0,7)===fm)}).sort(function(a,b){return a.due<b.due?1:a.due>b.due?-1:0});
+  h+='<section class="card" style="margin-bottom:16px"><header><h2>Bills</h2><span class="hint">'+bs.length+' shown</span></header>';
+  if(!bs.length)h+=empty('No bills match','Change the filters, register a client, or add a bill.');
+  else{
+    h+='<div class="tablewrap"><table><thead><tr><th>Period</th><th>Due</th><th>Client</th><th class="num">Billed</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th><th></th></tr></thead><tbody>';
+    bs.forEach(function(b){var i=info(b);
+      h+='<tr><td class="nw">'+rangeShort(b.start,b.due)+'</td><td class="nw">'+shortDT(b.due)+'</td><td>'+esc(clientName(b.clientId))+'</td><td class="num">'+peso(b.amount)+'</td><td class="num">'+peso(b.paid)+'</td><td class="num">'+peso(i.bal)+'</td><td>'+pill(i)+'</td><td class="nw"><div class="acts">'+
+        (i.bal>0?'<button class="btn sm primary" data-act="newPay" data-bill="'+b.id+'">Mark paid</button>':'')+
+        '<button class="btn sm" data-act="goMsg" data-client="'+b.clientId+'" data-bill="'+b.id+'">Message</button><button class="btn sm" data-act="editBill" data-id="'+b.id+'">Edit</button><button class="btn sm danger" data-act="delBill" data-id="'+b.id+'" title="Deletes the bill and its payments">Delete</button></div></td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  h+='</section>';
+  var ts=state.txs.filter(function(t){var b=bill(t.billId);return (f==='all'||t.clientId===f)&&(fm==='all'||(b&&b.due.slice(0,7)===fm))}).sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:b.ts-a.ts});
+  h+='<section class="card"><header><h2>Transactions</h2><span class="hint">'+ts.length+' · '+peso(sum(ts,function(t){return t.amount}))+' total</span></header>';
+  if(!ts.length)h+=empty('No transactions yet','Use Record payment when a client pays.');
+  else{
+    h+='<div class="tablewrap"><table><thead><tr><th>Date</th><th>Client</th><th>For</th><th class="num">Amount</th><th>Method</th><th>Reference</th><th></th></tr></thead><tbody>';
+    ts.forEach(function(t){var b=bill(t.billId);
+      h+='<tr><td class="nw">'+longDate(t.date)+'</td><td>'+esc(clientName(t.clientId))+'</td><td class="nw">'+(b?rangeShort(b.start,b.due):'—')+'</td><td class="num">'+peso(t.amount)+'</td><td>'+esc(t.method)+'</td><td>'+(esc(t.ref)||'<span class="hint">—</span>')+'</td><td class="nw"><div class="acts"><button class="btn sm" data-act="editTx" data-id="'+t.id+'">Edit</button><button class="btn sm danger" data-act="delTx" data-id="'+t.id+'">Delete</button></div></td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  return h+'</section>';
+}
+
+function messagesView(){
+  var h='<div class="pagehead"><div><h1 style="font-size:24px">Messages</h1><p>Copy the notice and forward it to your client</p></div></div>';
+  var m=ensureMsg();
+  if(!m)return h+'<div class="card">'+empty('No clients yet','Register a client to write their billing message.','<button class="btn primary" data-act="newClient">Register client</button>')+'</div>';
+  var bs=msgBills(m.clientId),b=getBill(m.billId),c=client(m.clientId);
+  h+='<div class="msgwrap"><section class="card"><div class="body" style="padding-top:16px">';
+  h+='<div class="field"><label for="mClient">Client</label><select id="mClient" data-change="msgClient">'+state.clients.map(function(x){return '<option value="'+x.id+'"'+(x.id===m.clientId?' selected':'')+'>'+esc(x.name)+'</option>'}).join('')+'</select></div>';
+  if(!bs.length||!b){return h+'<p class="hint">This client has no bills yet.</p></div></section></div>'}
+  h+='<div class="field"><label for="mBill">Billing period</label><select id="mBill" data-change="msgBill">'+bs.map(function(x){var i=info(x);return '<option value="'+x.id+'"'+(x.id===m.billId?' selected':'')+'>'+rangeShort(x.start,x.due)+' · '+(x.virtual?'Next bill':i.label)+'</option>'}).join('')+'</select></div>';
+  h+='<div class="two"><div class="field"><label for="mType">Message</label><select id="mType" data-change="msgType"><option value="reminder"'+(m.type==='reminder'?' selected':'')+'>Payment reminder</option><option value="receipt"'+(m.type==='receipt'?' selected':'')+'>Payment received</option></select></div>';
+  h+='<div class="field"><label for="mDate">Date on message</label><input type="date" id="mDate" data-change="msgDate" value="'+m.date+'"></div></div>';
+  if(m.type==='reminder')h+='<label class="check field"><input type="checkbox" id="mReason" data-change="msgReason"'+(m.reason?' checked':'')+'> Include reason for billing increase</label>';
+  h+='<p class="hint">Amount, period and payment details come from the bill and your Setup page.</p></div></section>';
+  h+='<section class="card"><header><h2>Message for '+esc(c.name)+'</h2><button class="btn primary" data-act="copyOut">Copy message</button></header><div class="body"><textarea class="msgout" id="msgOut" aria-label="Message text">'+esc(buildMessage(c,b,m))+'</textarea></div></section></div>';
+  return h;
+}
+
+function setupView(){
+  var s=state.settings;
+  var h='<div class="pagehead"><div><h1 style="font-size:24px">Setup</h1><p>Payment details and warnings</p></div></div><div class="grid2b"><section class="card"><div class="body" style="padding-top:16px"><form data-form="settings">';
+  h+='<div class="field"><label for="sName">Your name (receiver)</label><input id="sName" required value="'+esc(s.name)+'"></div>';
+  h+='<div class="two"><div class="field"><label for="sGcash">GCash number</label><input id="sGcash" required value="'+esc(s.gcash)+'" inputmode="tel"></div>';
+  h+='<div class="field"><label for="sShare">Default share per '+CYCLE+' days (₱)</label><input id="sShare" type="number" min="0" step="0.01" required value="'+s.defaultShare+'"><small>Prefilled when you register a client.</small></div></div>';
+  h+='<div class="field"><label for="sWarn">Warn me this many days before a due time</label><input id="sWarn" type="number" min="0" max="30" step="1" required value="'+s.reminderDays+'"><small>Clients inside this window show as "Due soon" on the alert strip and bell.</small></div>';
+  h+='<div class="field"><label for="sReason">Reason for billing increase</label><textarea id="sReason" rows="6">'+esc(s.reason)+'</textarea><small>Shown in reminders when the option is on.</small></div>';
+  h+='<button class="btn primary" type="submit">Save setup</button></form></div></section>';
+  h+='<section class="card"><header><h2>Backup</h2></header><div class="body"><p class="hint" style="margin-top:0">Data is stored in this browser only. Copy a backup now and then, and paste it back to restore on another device.</p>';
+  h+='<div class="acts" style="margin-bottom:12px"><button class="btn" data-act="copyBackup">Copy backup</button><button class="btn danger" data-act="resetAll">Erase everything</button></div>';
+  h+='<div class="field"><label for="bk">Restore from backup</label><textarea id="bk" rows="5" placeholder="Paste a backup here"></textarea></div><button class="btn" data-act="restore">Restore</button></div></section></div>';
+  return h;
+}
+
+var views={dashboard:dashboard,clients:clientsView,payments:paymentsView,messages:messagesView,setup:setupView};
+function route(){var r=location.hash.slice(1);return views[r]?r:'dashboard'}
+
+function renderAlertBar(){
+  var al=alerts(),el=$('alertbar');
+  if(!al.length){el.innerHTML='';return}
+  var ov=al.filter(function(a){return a.tone==='bad'}).length,so=al.length-ov;
+  var names=al.slice(0,3).map(function(a){return esc(a.name)+' ('+a.when+')'}).join(', ')+(al.length>3?' +'+(al.length-3)+' more':'');
+  el.innerHTML='<a class="alertbar '+(ov?'bad':'warn')+'" href="#dashboard"><b>'+(ov?ov+' overdue':'')+(ov&&so?' · ':'')+(so?so+' due soon':'')+'</b> – '+names+'</a>';
+}
+function renderBell(){
+  var al=alerts(),un=state.notes.filter(function(n){return !n.read}),total=al.length+un.length;
+  var d=$('bellDot');d.hidden=!total;d.textContent=total>9?'9+':total;
+  $('bell').setAttribute('aria-label','Notifications'+(total?' ('+total+' new)':''));
+  document.title=(al.length?'('+al.length+') ':'')+'Starlink Billing';
+  var h='<div class="pop-head"><b>Notifications</b><span class="acts">'+(un.length?'<button class="btn sm" data-act="readAll">Mark all read</button>':'')+(state.notes.length?'<button class="btn sm" data-act="clearNotes">Clear</button>':'')+'</span></div>';
+  al.forEach(function(a){h+='<div class="note"><span class="ic" style="background:var(--'+(a.tone==='bad'?'bad':'warn')+')"></span><div class="nb"><b>'+esc(a.name)+'</b> '+(a.tone==='bad'?'is overdue':'payment '+esc(a.when))+'<small>'+esc(a.sub)+'</small><div class="acts"><button class="btn sm" data-act="quickCopy" data-id="'+a.billId+'">Copy message</button><button class="btn sm primary" data-act="newPay" data-bill="'+a.billId+'">Mark paid</button></div></div></div>'});
+  state.notes.slice(0,15).forEach(function(n){h+='<div class="note'+(n.read?'':' unread')+'"><span class="ic" style="background:var(--good)"></span><div class="nb"><b>'+esc(n.text)+'</b><small>'+stamp(n.ts)+'</small></div><button class="btn x" data-act="delNote" data-id="'+n.id+'" aria-label="Dismiss">×</button></div>'});
+  if(!al.length&&!state.notes.length)h+='<div class="empty">Nothing new. Payments and due dates will show up here.</div>';
+  $('pop').innerHTML=h;
+}
+function render(){
+  var r=route();
+  document.querySelectorAll('#nav a').forEach(function(a){if(a.dataset.r===r)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
+  $('main').innerHTML=(storageOK?'':'<div class="banner">This browser is blocking storage, so changes will be lost when you close the page. Use Setup to copy a backup.</div>')+views[r]();
+  renderAlertBar();renderBell();
+}
+
+/* ---------- modals ---------- */
+function openModal(html){$('dialog').innerHTML=html;$('overlay').hidden=false;var f=$('dialog').querySelector('input:not([disabled]),select:not([disabled]),textarea');if(f)f.focus()}
+function closeModal(){$('overlay').hidden=true;$('dialog').innerHTML=''}
+function clientOptions(sel){return state.clients.map(function(c){return '<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+esc(c.name)+'</option>'}).join('')}
+
+function updatePreview(){
+  var box=$('prev');if(!box)return;
+  var share=parseFloat($('cShare').value),start=$('cStart').value,edit=!!box.closest('form').dataset.id;
+  if(!(share>=0)||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(start)){box.innerHTML='<span class="hint">Enter the share and the registration date and time to see the schedule.</span>';return}
+  start=start.slice(0,16);
+  var now=nowDT(),made=0,late=0,up=[];
+  for(var n=0;n<400;n++){
+    var st=addDaysDT(start,CYCLE*n),du=addDaysDT(start,CYCLE*(n+1));
+    if(st<=now){made++;if(du<now)late++}
+    if(du>=now&&up.length<3)up.push(midDT(du)+' <small class="hint">'+leftText(du)+'</small>');
+    if(st>now&&up.length>=3)break;
+  }
+  var d0=addDaysDT(start,CYCLE);
+  var h='<div class="prow"><span>Billing cycle</span><b>Every '+CYCLE+' days, automatic</b></div>';
+  h+='<div class="prow"><span>First period</span><b>'+rangeLong(start,d0).replace(' – ','<br>→ ')+'</b></div>';
+  h+='<div class="prow"><span>Amount</span><b>'+peso(share)+' per cycle</b></div>';
+  h+='<div class="prow"><span>First due</span><b>'+longDT(d0)+'<br><small class="hint">'+leftText(d0)+'</small></b></div>';
+  if(made)h+='<div class="prow"><span>'+(edit?'Bills so far':'Bills created now')+'</span><b>'+made+' ('+peso(share*made)+')'+(late?'<br><small class="hint">'+late+' already past due</small>':'')+'</b></div>';
+  h+='<div class="prow"><span>Upcoming due</span><b>'+up.join('<br>')+'</b></div>';
+  h+='<div class="prow"><span>When paid</span><b>+'+CYCLE+' days on top of the time left</b></div>';
+  box.innerHTML=h;
+}
+function clientForm(id){
+  var c=id?client(id):null,s=state.settings;
+  var h='<h2>'+(c?'Edit client':'Register client')+'</h2><form data-form="client" data-id="'+(c?c.id:'')+'">';
+  h+='<div class="field"><label for="cName">Full name</label><input id="cName" required value="'+esc(c?c.name:'')+'"></div>';
+  h+='<div class="field"><label for="cPhone">Phone or GCash</label><input id="cPhone" inputmode="tel" value="'+esc(c?c.phone:'')+'"></div>';
+  h+='<div class="field"><label for="cNotes">Notes</label><input id="cNotes" value="'+esc(c?c.notes:'')+'"></div>';
+  h+='<h3 class="sec">Billing · every '+CYCLE+' days</h3>';
+  h+='<div class="two"><div class="field"><label for="cShare">Share per cycle (₱)</label><input id="cShare" type="number" min="0" step="0.01" required value="'+(c?c.share:s.defaultShare)+'">'+(c?'<small>Applies to unpaid bills that are not yet due.</small>':'')+'</div>';
+  h+='<div class="field"><label for="cStart">Registered at (date and time)</label><input id="cStart" type="datetime-local" required value="'+(c?c.start:nowDT())+'"><small>'+(c?'Changing this moves the dates of all automatic bills.':'Defaults to right now. Each bill runs exactly '+CYCLE+' days from this time.')+'</small></div></div>';
+  h+='<div class="prev" id="prev" aria-live="polite"></div>';
+  if(c)h+='<label class="check field"><input type="checkbox" id="cActive"'+(c.active?' checked':'')+'> Active, include in automatic billing</label>';
+  h+='<div class="foot">'+(c?'<button type="button" class="btn danger" data-act="delClient" data-id="'+c.id+'" style="margin-right:auto">Delete client</button>':'')+'<button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn primary" type="submit">'+(c?'Save':'Register')+'</button></div></form>';
+  openModal(h);updatePreview();
+}
+
+function payOptions(cid){
+  var opens=billsOf(cid).filter(function(x){return balance(x)>0.005}).sort(function(a,b){return a.due<b.due?-1:1});
+  var v=projected(client(cid));
+  return v?opens.concat([v]):opens;
+}
+function payForm(o){
+  o=o||{};
+  if(!state.clients.length){toast('Register a client first');return}
+  var b=o.billId?getBill(o.billId):null,cid=b?b.clientId:(o.clientId||'');
+  if(!cid){var first=openBills()[0];cid=first?first.clientId:state.clients[0].id}
+  var list=payOptions(cid);
+  if(!b||b.clientId!==cid||!list.some(function(x){return x.id===b.id}))b=list[0]||null;
+  var h='<h2>Record payment</h2><form data-form="pay"><div class="field"><label for="pClient">Client</label><select id="pClient" data-change="payClient">'+clientOptions(cid)+'</select></div>';
+  if(!b){
+    h+='<p class="hint">This client has no bills to pay.</p><div class="foot"><button type="button" class="btn" data-act="closeModal">Close</button></div></form>';
+    openModal(h);return;
+  }
+  h+='<div class="field"><label for="pBill">Billing period</label><select id="pBill" data-change="payBill">'+list.map(function(x){return '<option value="'+x.id+'"'+(x.id===b.id?' selected':'')+'>'+rangeShort(x.start,x.due)+' · '+peso(balance(x))+(x.virtual?' · pay ahead':' due')+'</option>'}).join('')+'</select><small>Paying a bill adds '+CYCLE+' days on top of the time the client has left.</small></div>';
+  h+='<div class="two"><div class="field"><label for="pAmt">Amount received (₱)</label><input id="pAmt" type="number" min="0.01" step="0.01" required value="'+balance(b).toFixed(2)+'"></div>';
+  h+='<div class="field"><label for="pDate">Date received</label><input id="pDate" type="date" required value="'+(o.date||todayISO())+'"></div></div>';
+  h+='<div class="two"><div class="field"><label for="pMethod">Method</label><select id="pMethod">'+['GCash','Cash','Bank transfer','Other'].map(function(m){return '<option'+((o.method||'GCash')===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select></div>';
+  h+='<div class="field"><label for="pRef">Reference no.</label><input id="pRef" value="'+esc(o.ref||'')+'"></div></div>';
+  h+='<div class="foot"><button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn primary" type="submit">Save payment</button></div></form>';
+  openModal(h);
+}
+function payKeep(){var g=function(id){var e=$(id);return e?e.value:''};return {date:g('pDate'),method:g('pMethod'),ref:g('pRef')}}
+
+function txForm(id){
+  var t=state.txs.find(function(x){return x.id===id});if(!t)return;
+  var bl=bill(t.billId);
+  var h='<h2>Edit payment</h2><form data-form="tx" data-id="'+t.id+'">';
+  h+='<p class="hint" style="margin-top:0">'+esc(clientName(t.clientId))+(bl?' · '+rangeShort(bl.start,bl.due):'')+'</p>';
+  h+='<div class="two"><div class="field"><label for="tAmt">Amount (₱)</label><input id="tAmt" type="number" min="0.01" step="0.01" required value="'+t.amount+'"></div>';
+  h+='<div class="field"><label for="tDate">Date received</label><input id="tDate" type="date" required value="'+t.date+'"></div></div>';
+  h+='<div class="two"><div class="field"><label for="tMethod">Method</label><select id="tMethod">'+['GCash','Cash','Bank transfer','Other'].map(function(m){return '<option'+(t.method===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select></div>';
+  h+='<div class="field"><label for="tRef">Reference no.</label><input id="tRef" value="'+esc(t.ref||'')+'"></div></div>';
+  h+='<div class="foot"><button type="button" class="btn danger" data-act="delTx" data-id="'+t.id+'" style="margin-right:auto">Delete payment</button><button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn primary" type="submit">Save</button></div></form>';
+  openModal(h);
+}
+
+function billForm(id){
+  if(!state.clients.length){toast('Register a client first');return}
+  var b=id?bill(id):null,first=openBills()[0],cid=b?b.clientId:(first?first.clientId:state.clients[0].id),c=client(cid),now=nowDT();
+  var h='<h2>'+(b?'Edit bill':'Add bill')+'</h2><form data-form="bill" data-id="'+(b?b.id:'')+'">';
+  h+='<div class="field"><label for="bClient">Client</label><select id="bClient" data-change="billClient"'+(b?' disabled':'')+'>'+clientOptions(cid)+'</select>'+(b?'':'<small>Regular bills are created automatically every '+CYCLE+' days. Add one here for an extra or one-off charge.</small>')+'</div>';
+  h+='<div class="two"><div class="field"><label for="bStart">Period starts</label><input id="bStart" type="datetime-local" required value="'+(b?b.start:now)+'"></div>';
+  h+='<div class="field"><label for="bDue">Due</label><input id="bDue" type="datetime-local" required value="'+(b?b.due:addDaysDT(now,CYCLE))+'"></div></div>';
+  h+='<div class="field"><label for="bAmt">Amount (₱)</label><input id="bAmt" type="number" min="0" step="0.01" required value="'+(b?b.amount:(c?c.share:0))+'">'+(b&&b.paid>0?'<small>'+peso(b.paid)+' already paid on this bill.</small>':'')+'</div>';
+  h+='<div class="foot">'+(b?'<button type="button" class="btn danger" data-act="delBill" data-id="'+b.id+'" style="margin-right:auto">Delete bill</button>':'')+'<button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn primary" type="submit">'+(b?'Save':'Add bill')+'</button></div></form>';
+  openModal(h);
+}
+
+/* ---------- actions ---------- */
+function armed(btn,label){
+  if(btn.dataset.armed){return true}
+  btn.dataset.armed='1';btn.dataset.orig=btn.textContent;btn.textContent=label||'Confirm?';btn.classList.add('armed');
+  setTimeout(function(){if(btn.isConnected&&btn.dataset.armed){delete btn.dataset.armed;btn.textContent=btn.dataset.orig;btn.classList.remove('armed')}},3500);
+  return false;
+}
+var actions={
+  newClient:function(){clientForm()},
+  editClient:function(b,el){clientForm(el.dataset.id)},
+  newPay:function(b,el){
+    if(!$('pop').hidden)actions.toggleBell();
+    payForm({billId:el.dataset.bill,clientId:el.dataset.client});
+  },
+  newBill:function(){billForm()},
+  editBill:function(b,el){billForm(el.dataset.id)},
+  editTx:function(b,el){txForm(el.dataset.id)},
+  closeModal:closeModal,
+  toggleBell:function(){var p=$('pop');p.hidden=!p.hidden;$('bell').setAttribute('aria-expanded',String(!p.hidden))},
+  readAll:function(){state.notes.forEach(function(n){n.read=true});save();renderBell()},
+  delNote:function(b,el){state.notes=state.notes.filter(function(n){return n.id!==el.dataset.id});save();renderBell()},
+  clearNotes:function(){state.notes=[];save();renderBell();toast('Notifications cleared')},
+  clearLog:function(){state.log=[];save();render();toast('Activity cleared')},
+  goMsg:function(b,el){
+    var m=ensureMsg();if(!m)return;m.clientId=el.dataset.client;m.billId=el.dataset.bill||defaultBill(m.clientId);m.type='reminder';m.date=todayISO();
+    if(location.hash==='#messages')render();else location.hash='#messages';
+  },
+  quickCopy:async function(b,el){
+    var bl=getBill(el.dataset.id),c=bl&&client(bl.clientId);if(!c)return;
+    var ok=await copyText(buildMessage(c,bl,{type:'reminder',date:todayISO(),reason:true}));
+    toast(ok?'Message for '+c.name+' copied':'Could not copy. Open Messages and copy from there.');
+  },
+  copyOut:async function(){
+    var ok=await copyText($('msgOut').value);
+    if(!ok){$('msgOut').select()}
+    toast(ok?'Message copied. Paste it to your client.':'Text selected. Press Ctrl+C to copy.');
+  },
+  delTx:function(b,el){
+    if(!armed(el,'Confirm?'))return;
+    var t=state.txs.find(function(x){return x.id===el.dataset.id});if(!t)return;
+    var bl=bill(t.billId);if(bl)bl.paid=Math.max(0,bl.paid-t.amount);
+    state.txs=state.txs.filter(function(x){return x.id!==t.id});
+    addLog('Deleted a '+peso(t.amount)+' payment from '+clientName(t.clientId),'other');save();closeModal();render();toast('Payment deleted');
+  },
+  delBill:function(b,el){
+    if(!armed(el,'Confirm?'))return;
+    var bl=bill(el.dataset.id);if(!bl)return;
+    var c=client(bl.clientId);
+    if(c&&bl.n!=null){c.skipped=c.skipped||[];if(c.skipped.indexOf(bl.n)<0)c.skipped.push(bl.n)}
+    state.txs=state.txs.filter(function(t){return t.billId!==bl.id});
+    state.bills=state.bills.filter(function(x){return x.id!==bl.id});
+    addLog('Deleted the '+rangeShort(bl.start,bl.due)+' bill for '+clientName(bl.clientId),'other');save();closeModal();render();toast('Bill deleted');
+  },
+  delClient:function(b,el){
+    if(!armed(el,'Confirm delete'))return;
+    var id=el.dataset.id,n=clientName(id);
+    state.clients=state.clients.filter(function(c){return c.id!==id});
+    state.bills=state.bills.filter(function(x){return x.clientId!==id});
+    state.txs=state.txs.filter(function(x){return x.clientId!==id});
+    addLog('Deleted client '+n,'other');save();closeModal();render();toast(n+' deleted');
+  },
+  copyBackup:async function(){var ok=await copyText(JSON.stringify(state));toast(ok?'Backup copied':'Could not copy the backup')},
+  restore:function(b,el){
+    if(!armed(el,'Replace all data?'))return;
+    try{var s=JSON.parse($('bk').value);if(!s||!Array.isArray(s.clients))throw 0;state=migrate(normalize(s));ensureBills();save();render();toast('Backup restored')}
+    catch(e){toast('That is not a valid backup')}
+  },
+  resetAll:function(b,el){
+    if(!armed(el,'Click again to erase'))return;
+    state={v:3,settings:seed().settings,clients:[],bills:[],txs:[],notes:[],log:[]};save();render();toast('All data erased');
+  }
+};
+var changes={
+  fClient:function(v){ui.fClient=v;render()},
+  fMonth:function(v){ui.fMonth=v;render()},
+  msgClient:function(v){var m=ensureMsg();m.clientId=v;m.billId='';render()},
+  msgBill:function(v){ensureMsg().billId=v;render()},
+  msgType:function(v){ensureMsg().type=v;render()},
+  msgDate:function(v){if(v){ensureMsg().date=v;render()}},
+  msgReason:function(v,el){ensureMsg().reason=el.checked;render()},
+  payClient:function(v){payForm(Object.assign(payKeep(),{clientId:v}))},
+  payBill:function(v){payForm(Object.assign(payKeep(),{billId:v}))},
+  billClient:function(v){var c=client(v);if(c&&$('bAmt'))$('bAmt').value=c.share}
+};
+
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-act]');
+  if(el){var f=actions[el.dataset.act];if(f){f(e,el)}return}
+  if(e.target===$('overlay'))closeModal();
+  if(!e.target.closest('.bellwrap')&&!$('pop').hidden){$('pop').hidden=true;$('bell').setAttribute('aria-expanded','false')}
+});
+document.addEventListener('change',function(e){
+  var el=e.target.closest('[data-change]');if(el&&changes[el.dataset.change])changes[el.dataset.change](el.value,el);
+});
+document.addEventListener('input',function(e){if(e.target.closest&&e.target.closest('form[data-form="client"]'))updatePreview()});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){if(!$('overlay').hidden)closeModal();else if(!$('pop').hidden)actions.toggleBell()}
+});
+document.addEventListener('submit',function(e){
+  var f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();
+  var kind=f.dataset.form,v=function(id){return $(id).value.trim()},today=todayISO();
+  if(kind==='client'){
+    var id=f.dataset.id,share=parseFloat($('cShare').value),start=$('cStart').value.slice(0,16);
+    if(!v('cName')||!(share>=0)||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(start))return;
+    if(id){
+      var c=client(id),was=c.share,wasActive=c.active,oldStart=c.start;
+      c.name=v('cName');c.phone=v('cPhone');c.notes=v('cNotes');c.share=share;c.active=$('cActive').checked;c.start=start;
+      if(share!==was)state.bills.forEach(function(b){if(b.clientId===id&&b.paid===0&&b.due>=nowDT())b.amount=share});
+      if(start!==oldStart)state.bills.forEach(function(b){if(b.clientId===id&&b.n!=null){b.start=cycleStart(c,b.n);b.due=cycleDue(c,b.n)}});
+      if(!wasActive&&c.active){
+        c.skipped=c.skipped||[];var nw=nowDT();
+        for(var n=0;n<400;n++){
+          if(cycleStart(c,n)>nw)break;
+          if(!state.bills.some(function(b){return b.clientId===id&&b.n===n})&&c.skipped.indexOf(n)<0)c.skipped.push(n);
+        }
+      }
+      addLog('Updated '+c.name,'other');toast('Client saved');
+    }else{
+      var nc={id:uid(),name:v('cName'),phone:v('cPhone'),share:share,start:start,skipped:[],notes:v('cNotes'),active:true};
+      state.clients.push(nc);addLog('Registered '+nc.name+' on '+midDT(start)+' · '+peso(share)+' every '+CYCLE+' days','client');toast(nc.name+' registered. First due '+midDT(cycleDue(nc,0)));
+    }
+    ensureBills();save();closeModal();render();
+  }else if(kind==='pay'){
+    var bl=getBill($('pBill')&&$('pBill').value),amt=parseFloat($('pAmt').value);
+    if(!bl||!(amt>0))return;
+    var wasOnTime=bl.due>=nowDT();
+    if(bl.virtual)bl=materialize(bl);
+    var t={id:uid(),ts:Date.now(),billId:bl.id,clientId:bl.clientId,amount:amt,date:$('pDate').value||today,method:$('pMethod').value,ref:v('pRef')};
+    state.txs.push(t);bl.paid+=amt;
+    var n2=clientName(bl.clientId),full=balance(bl)<=0.005,text=n2+' paid '+peso(amt)+' for '+rangeShort(bl.start,bl.due);
+    if(full){
+      var nb=nextBill(client(bl.clientId));
+      if(nb)text+=' · '+(wasOnTime?'+'+CYCLE+' days added · ':'')+'covered until '+shortDT(nb.due)+' ('+dur(parseDT(nb.due)-Date.now())+' left)';
+    }else text+=' (balance '+peso(balance(bl))+')';
+    state.notes.unshift({id:uid(),ts:Date.now(),text:text,read:false});if(state.notes.length>50)state.notes.length=50;
+    addLog(text,'payment');save();closeModal();render();toast('Payment received: '+text);
+  }else if(kind==='tx'){
+    var tx=state.txs.find(function(x){return x.id===f.dataset.id}),na=parseFloat($('tAmt').value);
+    if(!tx||!(na>0))return;
+    var tb=bill(tx.billId);if(tb)tb.paid=Math.max(0,tb.paid-tx.amount+na);
+    tx.amount=na;tx.date=$('tDate').value||tx.date;tx.method=$('tMethod').value;tx.ref=v('tRef');
+    addLog('Edited a payment from '+clientName(tx.clientId)+' to '+peso(na),'other');save();closeModal();render();toast('Payment updated');
+  }else if(kind==='bill'){
+    var bid=f.dataset.id,bs=$('bStart').value.slice(0,16),bd=$('bDue').value.slice(0,16),ba=parseFloat($('bAmt').value);
+    if(!bs||!bd||!(ba>=0))return;
+    if(bd<bs){toast('Due must be after the period start');return}
+    if(bid){var eb=bill(bid);eb.start=bs;eb.due=bd;eb.amount=ba;addLog('Edited the '+rangeShort(bs,bd)+' bill for '+clientName(eb.clientId),'other');toast('Bill saved')}
+    else{var cid=$('bClient').value;state.bills.push({id:uid(),clientId:cid,n:null,manual:true,start:bs,due:bd,amount:ba,paid:0});addLog('Added a '+peso(ba)+' bill for '+clientName(cid),'other');toast('Bill added')}
+    save();closeModal();render();
+  }else if(kind==='settings'){
+    var sh=parseFloat($('sShare').value),wd=parseInt($('sWarn').value,10);
+    state.settings={name:v('sName'),gcash:v('sGcash'),defaultShare:sh>=0?sh:1150,reminderDays:isNaN(wd)?3:Math.min(30,Math.max(0,wd)),reason:$('sReason').value};
+    save();render();toast('Setup saved');
+  }
+});
+window.addEventListener('hashchange',function(){$('pop').hidden=true;render();window.scrollTo(0,0)});
+
+/* ---------- boot and minute refresh ---------- */
+state=load();
+ensureBills();
+try{save()}catch(e){storageOK=false}
+render();
+function tick(){
+  var changed=ensureBills();
+  if(changed)save();
+  var r=route(),ae=document.activeElement;
+  var typing=ae&&ae.tagName&&/INPUT|SELECT|TEXTAREA/.test(ae.tagName)&&$('main').contains&&$('main').contains(ae);
+  if($('overlay').hidden&&!typing&&(r==='dashboard'||r==='clients'||r==='payments'))render();
+  else{renderAlertBar();renderBell()}
+}
+setInterval(tick,60000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)tick()});
+var al0=alerts(),ov0=al0.filter(function(a){return a.tone==='bad'}).length,so0=al0.length-ov0;
+if(al0.length)setTimeout(function(){toast((ov0?ov0+' overdue':'')+(ov0&&so0?' · ':'')+(so0?so0+' due soon':'')+': '+al0[0].name+(al0.length>1?' and '+(al0.length-1)+' more':''))},500);
+})();
+</script>
+
+</body></html>

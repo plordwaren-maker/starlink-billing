@@ -2,6 +2,7 @@ services:
   - type: web
     name: starlink-billing
     runtime: docker
+    plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /up
     autoDeploy: true
